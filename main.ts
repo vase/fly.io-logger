@@ -36,18 +36,7 @@ console.log(`Connecting to: ${Deno.env.get("LOGGING_MONGO_HOST")}`);
 await logDBClient.connect(
   Deno.env.get("LOGGING_MONGO_URI") || "",
 );
-// await logDBClient.connect({
-//   tls: false,
-//   credential: {
-//     username: Deno.env.get("LOGGING_MONGO_USERNAME"),
-//     password: Deno.env.get("LOGGING_MONGO_PASSWORD"),
-//   },
-//   db: "admin",
-//   servers: [{
-//     host: Deno.env.get("LOGGING_MONGO_HOST") || "",
-//     port: Number(Deno.env.get("LOGGING_MONGO_PORT")),
-//   }],
-// });
+
 const logDB = logDBClient.database("flyAppLogs");
 
 interface AppsList {
