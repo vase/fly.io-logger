@@ -27,7 +27,7 @@ const appsRequest = await fetch(`${baseUrl}/graphql`, {
   }),
   headers: {
     "Content-Type": "application/json",
-    Authorization: `Bearer ${Deno.env.get("AUTH_TOKEN")}`,
+    Authorization: `Bearer ${Deno.env.get("FLY_AUTH_TOKEN")}`,
   },
 });
 
@@ -109,7 +109,7 @@ async function getLogsFor(appId: keyof typeof appCollectionHash) {
       method: "GET",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${Deno.env.get("AUTH_TOKEN")}`,
+        Authorization: `Bearer ${Deno.env.get("FLY_AUTH_TOKEN")}`,
       },
     },
   )).json();
