@@ -32,6 +32,7 @@ const appsRequest = await fetch(`${baseUrl}/graphql`, {
 });
 
 const logDBClient = new MongoClient();
+console.log(`Connecting to: ${Deno.env.get("LOGGING_MONGO_URI")}`);
 await logDBClient.connect(
   Deno.env.get("LOGGING_MONGO_URI") || "mongodb://127.0.0.1:27017",
 );
