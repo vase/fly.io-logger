@@ -32,7 +32,6 @@ const appsRequest = await fetch(`${baseUrl}/graphql`, {
 });
 
 const logDBClient = new MongoClient();
-console.log(`Connecting to: ${Deno.env.get("LOGGING_MONGO_HOST")}`);
 await logDBClient.connect(
   Deno.env.get("LOGGING_MONGO_URI") || "",
 );
@@ -155,6 +154,7 @@ async function getLogsFor(appId: keyof typeof appCollectionHash) {
   setTimeout(async () => await getLogsFor(appId), timeToNextCallCache[appId]);
 }
 
+console.log("====== BOOT COMPLETE ======");
 for (const app of appsList) {
   console.log(`Started ${app.id}`);
   await getLogsFor(app.id);
