@@ -1,4 +1,4 @@
-FROM hayd/alpine-deno:1.9.0@sha256:7e5e9f019df8553bf96bfd46dfa13da9ec252b41cc8136f39ab86a432d11eca5
+FROM hayd/deno:distroless-1.8.3@sha256:52722ed74dd1d6cb4d64868efa78b427573f9d802cf82afc2933baeb49d4a605
 ENV DENO_ENV production
 WORKDIR /app
 
@@ -13,6 +13,6 @@ ADD . .
 RUN ["deno", "cache", "main.ts"]
 
 # Optionally prefer not to run as root.
-# USER deno
+USER nonroot
 
 CMD ["run", "--allow-net", "--allow-env", "main.ts"]
