@@ -13,6 +13,6 @@ ADD . .
 RUN ["deno", "cache", "main.ts"]
 
 # Optionally prefer not to run as root.
-USER deno
+# USER deno
 
 CMD ["run", "--allow-net", "--allow-env", "main.ts"]
