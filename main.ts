@@ -57,7 +57,6 @@ try {
     },
   });
   const appsReponse = await appsRequest.json();
-  console.log(appsReponse);
   appsList = appsReponse?.data?.apps?.nodes || [];
 } catch (err) {
   console.log(err);
