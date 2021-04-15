@@ -178,3 +178,7 @@ try {
 //     },
 //   }, { upsert: true });
 // }, 10000);
+
+setInterval(() => {
+  console.log("to keep running");
+}, 10000);
