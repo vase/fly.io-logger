@@ -4,33 +4,6 @@ if (Deno.env.get("DENO_ENV") !== "production") {
 }
 const baseUrl = "https://api.fly.io";
 
-// Get Apps
-const appsRequest = await fetch(`${baseUrl}/graphql`, {
-  method: "POST",
-  body: JSON.stringify({
-    query: `query {
-                apps(type: "container", first: 400, role: null) {
-                    nodes {
-                        id
-                        name
-                        deployed
-                        organization {
-                            slug
-                        }
-                        currentRelease {
-                            createdAt
-                        }
-                        status
-                    }
-                }
-            }`,
-  }),
-  headers: {
-    "Content-Type": "application/json",
-    Authorization: `Bearer ${Deno.env.get("FLY_AUTH_TOKEN")}`,
-  },
-});
-
 interface AppsList {
   id: string;
   status: string;
@@ -38,7 +11,6 @@ interface AppsList {
     slug: string;
   };
 }
-
 interface LogObject {
   id: string;
   type: string;
@@ -55,8 +27,41 @@ interface LogObject {
   };
 }
 
-const appsReponse = await appsRequest.json();
-let appsList: AppsList[] = appsReponse?.data?.apps?.nodes || [];
+// Get Apps
+let appsRequest;
+let appsList: AppsList[] = [];
+try {
+  appsRequest = await fetch(`${baseUrl}/graphql`, {
+    method: "POST",
+    body: JSON.stringify({
+      query: `query {
+                  apps(type: "container", first: 400, role: null) {
+                      nodes {
+                          id
+                          name
+                          deployed
+                          organization {
+                              slug
+                          }
+                          currentRelease {
+                              createdAt
+                          }
+                          status
+                      }
+                  }
+              }`,
+    }),
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${Deno.env.get("FLY_AUTH_TOKEN")}`,
+    },
+  });
+  const appsReponse = await appsRequest.json();
+  appsList = appsReponse?.data?.apps?.nodes || [];
+} catch (err) {
+  console.log(err);
+}
+
 console.log(JSON.stringify(appsList, null, 2));
 
 const logDBClient = new MongoClient();
