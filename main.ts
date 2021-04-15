@@ -57,12 +57,11 @@ try {
     },
   });
   const appsReponse = await appsRequest.json();
+  console.log(appsReponse);
   appsList = appsReponse?.data?.apps?.nodes || [];
 } catch (err) {
   console.log(err);
 }
-
-console.log(JSON.stringify(appsList, null, 2));
 
 const logDBClient = new MongoClient();
 await logDBClient.connect(Deno.env.get("LOGGING_MONGO_URI") || "");
