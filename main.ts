@@ -31,10 +31,9 @@ const appsRequest = await fetch(`${baseUrl}/graphql`, {
   },
 });
 
+console.log(`Current Env: ${JSON.stringify(Deno.env.toObject())}`);
 const logDBClient = new MongoClient();
-await logDBClient.connect(
-  Deno.env.get("LOGGING_MONGO_URI") || "",
-);
+await logDBClient.connect(Deno.env.get("LOGGING_MONGO_URI") || "");
 
 const logDB = logDBClient.database("flyAppLogs");
 
@@ -62,7 +61,8 @@ interface LogObject {
   };
 }
 
-let appsList: AppsList[] = (await appsRequest.json())?.data?.apps?.nodes || [];
+const appsReponse = await appsRequest.json();
+let appsList: AppsList[] = appsReponse?.data?.apps?.nodes || [];
 
 if (Deno.env.get("ORG_REGEX")) {
   appsList = appsList.filter((e: { organization: { slug: string } }) =>
