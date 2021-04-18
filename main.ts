@@ -1,4 +1,4 @@
-import { config, MongoClient, rFetch } from "./deps.ts";
+import { config, MongoClient } from "./deps.ts";
 if (Deno.env.get("DENO_ENV") !== "production") {
   config({ export: true });
 }
