@@ -104,7 +104,7 @@ async function getLogsFor(
       await appCollectionHash[appId].insertMany(logs, { ordered: false });
     } catch (err) {
       // log error
-      console.log(err);
+      console.log(err.code);
     }
   }
 
