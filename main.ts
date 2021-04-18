@@ -171,7 +171,11 @@ async function getLatestAppsList() {
         appCollectionHash[app.id] = logDB.collection(app.id);
         await appCollectionHash[app.id].createIndexes({
           indexes: [
-            { key: { logId: 1 }, name: "logId_unique_index", unique: true },
+            {
+              key: { logId: 1, logTimestamp: 1 },
+              name: "logId_and_timestamp_unique_index",
+              unique: true,
+            },
             { key: { logTimestamp: 1 }, name: "logTimestamp_index" },
             { key: { instanceId: 1 }, name: "instanceId_index" },
             { key: { level: 1 }, name: "level_index" },
