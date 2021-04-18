@@ -1,4 +1,4 @@
-# fly.toml file generated for fly-on-the-wall-staging on 2021-04-15T04:41:47+08:00
+# fly.toml file generated for fly-on-the-wall on 2021-04-15T04:41:47+08:00
 
 app = ""
 
