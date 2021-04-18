@@ -104,7 +104,9 @@ async function getLogsFor(
       await appCollectionHash[appId].insertMany(logs, { ordered: false });
     } catch (err) {
       // log error
-      console.log(err.message);
+      if (!err.message.startsWith("E11000 duplicate key error collection:")) {
+        console.log(err);
+      }
     }
   }
 
