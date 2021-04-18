@@ -4,40 +4,7 @@ if (Deno.env.get("DENO_ENV") !== "production") {
 }
 const baseUrl = "https://api.fly.io";
 
-// Get Apps
-const appsRequest = await fetch(`${baseUrl}/graphql`, {
-  method: "POST",
-  body: JSON.stringify({
-    query: `query {
-                apps(type: "container", first: 400, role: null) {
-                    nodes {
-                        id
-                        name
-                        deployed
-                        organization {
-                            slug
-                        }
-                        currentRelease {
-                            createdAt
-                        }
-                        status
-                    }
-                }
-            }`,
-  }),
-  headers: {
-    "Content-Type": "application/json",
-    Authorization: `Bearer ${Deno.env.get("AUTH_TOKEN")}`,
-  },
-});
-
-const logDBClient = new MongoClient();
-await logDBClient.connect(
-  Deno.env.get("LOGGING_MONGO_URI") || "mongodb://127.0.0.1:27017",
-);
-const logDB = logDBClient.database("flyAppLogs");
-
-interface AppsList {
+export interface AppsList {
   id: string;
   status: string;
   organization: {
@@ -61,58 +28,60 @@ interface LogObject {
   };
 }
 
-let appsList: AppsList[] = (await appsRequest.json())?.data?.apps?.nodes || [];
-
-if (Deno.env.get("ORG_REGEX")) {
-  appsList = appsList.filter((e: { organization: { slug: string } }) =>
-    e.organization.slug.match(new RegExp(`${Deno.env.get("ORG_REGEX")}`))
-  );
+// Retryable fetch wrapper
+export async function rFetch(
+  url: string,
+  options: RequestInit,
+  n: number,
+): ReturnType<Response["json"]> {
+  try {
+    return (await fetch(url, options)).json();
+  } catch (err) {
+    if (n === 1) throw err;
+    return rFetch(url, options, n - 1);
+  }
 }
 
+// Connect to Mongo
+const logDBClient = new MongoClient();
+try {
+  await logDBClient.connect(Deno.env.get("LOGGING_MONGO_URI") || "");
+} catch (err) {
+  console.log(err);
+}
+const logDB = logDBClient.database("flyAppLogs");
+
+// Set up cache objects
+let appsList: AppsList[] = [];
 // Create mongo collection object cache
 const appCollectionHash: { [k: string]: ReturnType<typeof logDB.collection> } =
   {};
-
-for (const app of appsList) {
-  appCollectionHash[app.id] = logDB.collection(app.id);
-  await appCollectionHash[app.id].createIndexes({
-    indexes: [
-      { key: { logId: 1 }, name: "logId_unique_index", unique: true },
-      { key: { logTimestamp: 1 }, name: "logTimestamp_index" },
-      { key: { instanceId: 1 }, name: "instanceId_index" },
-      { key: { level: 1 }, name: "level_index" },
-      { key: { message: "text" }, name: "message_text_index" },
-    ],
-  });
-}
-
 // Create next_token cache object
-const nextTokenCache: { [k: string]: number } = Object.assign(
-  {},
-  appsList.reduce(
-    (prev, curr) =>
-      Object.assign(prev, (curr.status === "running") ? { [curr.id]: "" } : {}),
-    {},
-  ),
-);
-
+const nextTokenCache: { [k: string]: string } = {};
 // Create timeToNextCall cache object
-const timeToNextCallCache = Object.assign({}, nextTokenCache);
-for (const key of Object.keys(timeToNextCallCache)) {
-  timeToNextCallCache[key] = 2000;
-}
+const timeToNextCallCache: { [k: string]: number } = {};
+// Create setTimeout Cache
+const setTimeoutCache: { [k: string]: number } = {};
 
-async function getLogsFor(appId: keyof typeof appCollectionHash) {
-  const logRequest = await (await fetch(
-    `${baseUrl}/api/v1/apps/${appId}/logs?next_token=${nextTokenCache[appId]}`,
-    {
-      method: "GET",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${Deno.env.get("AUTH_TOKEN")}`,
+console.log("====== BOOT COMPLETE ======");
+
+async function getLogsFor(
+  appId: keyof typeof appCollectionHash,
+): Promise<number> {
+  const logRequest: { data: LogObject[]; meta: { next_token: string } } =
+    await rFetch(
+      `${baseUrl}/api/v1/apps/${appId}/logs?next_token=${
+        nextTokenCache[appId]
+      }`,
+      {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${Deno.env.get("FLY_AUTH_TOKEN")}`,
+        },
       },
-    },
-  )).json();
+      3,
+    );
 
   const { data, meta: { next_token: nextToken } } = logRequest;
 
@@ -135,7 +104,9 @@ async function getLogsFor(appId: keyof typeof appCollectionHash) {
       await appCollectionHash[appId].insertMany(logs, { ordered: false });
     } catch (err) {
       // log error
-      console.log(err);
+      if (!err.message.startsWith("E11000 duplicate key error collection:")) {
+        console.log(err);
+      }
     }
   }
 
@@ -150,13 +121,95 @@ async function getLogsFor(appId: keyof typeof appCollectionHash) {
     if (timeToNextCallCache[appId] > 250) timeToNextCallCache[appId] -= 250;
     nextTokenCache[appId] = nextToken;
   }
-  setTimeout(async () => await getLogsFor(appId), timeToNextCallCache[appId]);
+  return setTimeout(
+    async () => await getLogsFor(appId),
+    timeToNextCallCache[appId],
+  );
 }
 
-for (const app of appsList) {
-  console.log(`Started ${app.id}`);
-  await getLogsFor(app.id);
+async function getLatestAppsList() {
+  console.log("Refreshing apps list");
+  // Get Apps
+  const appsResponse: { data: { apps: { nodes: [] } } } = await rFetch(
+    `${baseUrl}/graphql`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${Deno.env.get("FLY_AUTH_TOKEN")}`,
+      },
+      body: JSON.stringify({
+        query: `query {
+            apps(type: "container", first: 400, role: null) {
+              nodes {
+                id
+                name
+                deployed
+                organization {
+                    slug
+                }
+                currentRelease {
+                    createdAt
+                }
+                status
+              }
+            }
+          }`,
+      }),
+    },
+    5,
+  );
+  try {
+    appsList = appsResponse?.data?.apps?.nodes;
+    if (Deno.env.get("ORG_REGEX")) {
+      appsList = appsList.filter((e: { organization: { slug: string } }) =>
+        e.organization.slug.match(new RegExp(`${Deno.env.get("ORG_REGEX")}`))
+      );
+    }
+
+    for (const app of appsList) {
+      // Create app key if doesn't exist in cache
+      if (!appCollectionHash[app.id]) {
+        appCollectionHash[app.id] = logDB.collection(app.id);
+        await appCollectionHash[app.id].createIndexes({
+          indexes: [
+            {
+              key: { logId: 1, logTimestamp: 1 },
+              name: "logId_and_timestamp_unique_index",
+              unique: true,
+            },
+            { key: { logTimestamp: 1 }, name: "logTimestamp_index" },
+            { key: { instanceId: 1 }, name: "instanceId_index" },
+            { key: { level: 1 }, name: "level_index" },
+            { key: { message: "text" }, name: "message_text_index" },
+          ],
+        });
+      }
+
+      // Create next_token key if doesn't exist in cache
+      if (!nextTokenCache[app.id]) {
+        nextTokenCache[app.id] = "";
+      }
+
+      // Create timeToNextCall key if doesn't exist in cache
+      if (!timeToNextCallCache[app.id]) {
+        timeToNextCallCache[app.id] = 2000;
+      }
+
+      // Schedule first job if it hasn't been scheduled
+      if (!setTimeoutCache[app.id]) {
+        console.log(`Scheduling first run for ${app.id}`);
+        setTimeoutCache[app.id] = await getLogsFor(app.id);
+      }
+    }
+  } catch (err) {
+    console.log(err);
+  }
 }
+
+getLatestAppsList();
+// Set up 10 minute re-retrieval of apps lists.
+setInterval(getLatestAppsList, 600000);
 
 // Update statedocument
 setInterval(async () => {
@@ -165,6 +218,7 @@ setInterval(async () => {
       _id: "statedocument",
       nextTokenCache,
       timeToNextCallCache,
+      setTimeoutCache,
       lastUpdated: new Date(),
     },
   }, { upsert: true });
