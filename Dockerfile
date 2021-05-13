@@ -1,4 +1,4 @@
-FROM hayd/distroless-deno:1.9.0@sha256:470563bfd23190d42cd9915c30c91210c4dce5aeff361aaa2060215a9d1a775e
+FROM hayd/distroless-deno:1.10.1@sha256:d96d7fa89c16567eff9f646c3ee4bbc572652aece1dc05417aeeca0dc6429d43
 ENV DENO_ENV=production
 
 WORKDIR /app
