@@ -1,7 +1,7 @@
-import { config, MongoClient } from "./deps.ts";
-if (Deno.env.get("DENO_ENV") !== "production") {
-  config({ export: true });
-}
+import { MongoClient } from "./deps.ts";
+// if (Deno.env.get("DENO_ENV") !== "production") {
+//   config({ export: true });
+// }
 const baseUrl = "https://api.fly.io";
 
 export interface AppsList {
@@ -35,8 +35,14 @@ export async function rFetch(
   n: number,
 ): ReturnType<Response["json"]> {
   try {
-    return (await fetch(url, options)).json();
+    const res = await fetch(url, options);
+    if (res.status === 204) {
+      return rFetch(url, options, n);
+    } else {
+      return res.json();
+    }
   } catch (err) {
+    console.log(err);
     if (n === 1) throw err;
     return rFetch(url, options, n - 1);
   }
@@ -169,7 +175,7 @@ async function getLatestAppsList() {
 
     for (const app of appsList) {
       // Create app key if doesn't exist in cache
-      if (!appCollectionHash[app.id]) {
+      if (!appCollectionHash[app.id] && app.status === "running") {
         appCollectionHash[app.id] = logDB.collection(app.id);
         await appCollectionHash[app.id].createIndexes({
           indexes: [
