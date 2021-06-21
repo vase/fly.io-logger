@@ -42,9 +42,14 @@ export async function rFetch(
       return res.json();
     }
   } catch (err) {
-    console.log(err);
-    if (n === 1) throw err;
-    return rFetch(url, options, n - 1);
+    if (
+      err.message === "SyntaxError: Unexpected token < in JSON at position 0"
+    ) {
+      return rFetch(url, options, n);
+    } else {
+      if (n === 1) throw err;
+      return rFetch(url, options, n - 1);
+    }
   }
 }
 
