@@ -35,8 +35,14 @@ export async function rFetch(
   n: number,
 ): ReturnType<Response["json"]> {
   try {
-    return (await fetch(url, options)).json();
+    const res = await fetch(url, options);
+    if (res.status === 204) {
+      return rFetch(url, options, n);
+    } else {
+      return res.json();
+    }
   } catch (err) {
+    console.log(err);
     if (n === 1) throw err;
     return rFetch(url, options, n - 1);
   }
