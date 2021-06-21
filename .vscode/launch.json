@@ -18,6 +18,11 @@
         "--allow-env",
         "--allow-net=127.0.0.1,api.fly.io"
       ],
+      "env": {
+        "FLY_AUTH_TOKEN": "",
+        "LOGGING_MONGO_URI": "mongodb://127.0.0.1:27017",
+        "ORG_REGEX": "staging"
+      },
       "attachSimplePort": 9229
     }
   ]
