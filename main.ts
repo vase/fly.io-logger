@@ -200,22 +200,22 @@ async function getLatestAppsList() {
             { key: { message: "text" }, name: "message_text_index" },
           ],
         });
-      }
+        
+        // Create next_token key if doesn't exist in cache
+        if (!nextTokenCache[app.id]) {
+          nextTokenCache[app.id] = "";
+        }
 
-      // Create next_token key if doesn't exist in cache
-      if (!nextTokenCache[app.id]) {
-        nextTokenCache[app.id] = "";
-      }
+        // Create timeToNextCall key if doesn't exist in cache
+        if (!timeToNextCallCache[app.id]) {
+          timeToNextCallCache[app.id] = 2000;
+        }
 
-      // Create timeToNextCall key if doesn't exist in cache
-      if (!timeToNextCallCache[app.id]) {
-        timeToNextCallCache[app.id] = 2000;
-      }
-
-      // Schedule first job if it hasn't been scheduled
-      if (!setTimeoutCache[app.id]) {
-        console.log(`Scheduling first run for ${app.id}`);
-        setTimeoutCache[app.id] = await getLogsFor(app.id);
+        // Schedule first job if it hasn't been scheduled
+        if (!setTimeoutCache[app.id]) {
+          console.log(`Scheduling first run for ${app.id}`);
+          setTimeoutCache[app.id] = await getLogsFor(app.id);
+        }
       }
     }
   } catch (err) {
