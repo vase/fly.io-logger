@@ -182,8 +182,9 @@ async function getLatestAppsList() {
     for (const app of appsList) {
       // Create app key if doesn't exist in cache
       if (
+        !app.name.match(new RegExp(`fly-on-the-wall`)) && // Exclude this app
         !appCollectionHash[app.id] &&
-        ["running", "pending","deployed"].includes(app.status)
+        ["running", "pending", "deployed"].includes(app.status)
       ) {
         appCollectionHash[app.id] = logDB.collection(app.id);
         await appCollectionHash[app.id].createIndexes({
