@@ -116,6 +116,7 @@ async function getLogsFor(
     } catch (err) {
       // log error
       if (!err.message.startsWith("E11000 duplicate key error collection:")) {
+        console.log(`ERROR with APP-ID: ${appId}`)
         console.log(err);
       }
     }
@@ -181,8 +182,9 @@ async function getLatestAppsList() {
     for (const app of appsList) {
       // Create app key if doesn't exist in cache
       if (
+        !app.name.match(new RegExp(`fly-on-the-wall`)) && // Exclude this app
         !appCollectionHash[app.id] &&
-        ["running", "pending"].includes(app.status)
+        ["running", "pending", "deployed"].includes(app.status)
       ) {
         appCollectionHash[app.id] = logDB.collection(app.id);
         await appCollectionHash[app.id].createIndexes({
@@ -198,22 +200,22 @@ async function getLatestAppsList() {
             { key: { message: "text" }, name: "message_text_index" },
           ],
         });
-      }
+        
+        // Create next_token key if doesn't exist in cache
+        if (!nextTokenCache[app.id]) {
+          nextTokenCache[app.id] = "";
+        }
 
-      // Create next_token key if doesn't exist in cache
-      if (!nextTokenCache[app.id]) {
-        nextTokenCache[app.id] = "";
-      }
+        // Create timeToNextCall key if doesn't exist in cache
+        if (!timeToNextCallCache[app.id]) {
+          timeToNextCallCache[app.id] = 2000;
+        }
 
-      // Create timeToNextCall key if doesn't exist in cache
-      if (!timeToNextCallCache[app.id]) {
-        timeToNextCallCache[app.id] = 2000;
-      }
-
-      // Schedule first job if it hasn't been scheduled
-      if (!setTimeoutCache[app.id]) {
-        console.log(`Scheduling first run for ${app.id}`);
-        setTimeoutCache[app.id] = await getLogsFor(app.id);
+        // Schedule first job if it hasn't been scheduled
+        if (!setTimeoutCache[app.id]) {
+          console.log(`Scheduling first run for ${app.id}`);
+          setTimeoutCache[app.id] = await getLogsFor(app.id);
+        }
       }
     }
   } catch (err) {
