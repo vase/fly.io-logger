@@ -182,7 +182,7 @@ async function getLatestAppsList() {
       // Create app key if doesn't exist in cache
       if (
         !appCollectionHash[app.id] &&
-        ["running", "pending"].includes(app.status)
+        ["running", "pending","deployed"].includes(app.status)
       ) {
         appCollectionHash[app.id] = logDB.collection(app.id);
         await appCollectionHash[app.id].createIndexes({
