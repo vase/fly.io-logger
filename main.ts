@@ -116,6 +116,7 @@ async function getLogsFor(
     } catch (err) {
       // log error
       if (!err.message.startsWith("E11000 duplicate key error collection:")) {
+        console.log(`ERROR with APP-ID: ${appId}`)
         console.log(err);
       }
     }
