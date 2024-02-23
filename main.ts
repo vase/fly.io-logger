@@ -6,9 +6,14 @@ const baseUrl = "https://api.fly.io";
 
 export interface AppsList {
   id: string;
+  name: string;
+  deployed: boolean;
   status: string;
   organization: {
     slug: string;
+  };
+  currentRelease: {
+    createdAt: string;
   };
 }
 
@@ -116,7 +121,7 @@ async function getLogsFor(
     } catch (err) {
       // log error
       if (!err.message.startsWith("E11000 duplicate key error collection:")) {
-        console.log(`ERROR with APP-ID: ${appId}`)
+        console.log(`ERROR with APP-ID: ${appId}`);
         console.log(err);
       }
     }
@@ -152,7 +157,7 @@ async function getLatestAppsList() {
       },
       body: JSON.stringify({
         query: `query {
-            apps(type: "container", first: 400, role: null) {
+            apps(first: 400, role: null) {
               nodes {
                 id
                 name
@@ -200,7 +205,7 @@ async function getLatestAppsList() {
             { key: { message: "text" }, name: "message_text_index" },
           ],
         });
-        
+
         // Create next_token key if doesn't exist in cache
         if (!nextTokenCache[app.id]) {
           nextTokenCache[app.id] = "";
