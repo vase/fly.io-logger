@@ -84,59 +84,64 @@ console.log("====== BOOT COMPLETE ======");
 async function getLogsFor(
   appId: keyof typeof appCollectionHash,
 ): Promise<number> {
-  const logRequest: { data: LogObject[]; meta: { next_token: string } } =
-    await rFetch(
-      `${baseUrl}/api/v1/apps/${appId}/logs?next_token=${
-        nextTokenCache[appId]
-      }`,
-      {
-        method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${Deno.env.get("FLY_AUTH_TOKEN")}`,
+  try {
+    const logRequest: { data: LogObject[]; meta: { next_token: string } } =
+      await rFetch(
+        `${baseUrl}/api/v1/apps/${appId}/logs?next_token=${
+          nextTokenCache[appId]
+        }`,
+        {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${Deno.env.get("FLY_AUTH_TOKEN")}`,
+          },
         },
-      },
-      3,
-    );
+        3,
+      );
 
-  const { data, meta: { next_token: nextToken } } = logRequest;
+    const { data, meta: { next_token: nextToken } } = logRequest;
 
-  // Update logs object
-  const logs = data.map((logObject: LogObject) => ({
-    appId,
-    logId: logObject.id,
-    type: logObject.type,
-    logTimestamp: new Date(logObject.attributes.timestamp),
-    insertionTimestamp: new Date(),
-    message: logObject.attributes.message,
-    level: logObject.attributes.level,
-    instanceId: logObject.attributes.instance,
-    region: logObject.attributes.region,
-    serialisedOriginalJSON: JSON.stringify(logObject),
-  }));
+    // Update logs object
+    const logs = data.map((logObject: LogObject) => ({
+      appId,
+      logId: logObject.id,
+      type: logObject.type,
+      logTimestamp: new Date(logObject.attributes.timestamp),
+      insertionTimestamp: new Date(),
+      message: logObject.attributes.message,
+      level: logObject.attributes.level,
+      instanceId: logObject.attributes.instance,
+      region: logObject.attributes.region,
+      serialisedOriginalJSON: JSON.stringify(logObject),
+    }));
 
-  if (logs.length > 0) {
-    try {
-      await appCollectionHash[appId].insertMany(logs, { ordered: false });
-    } catch (err) {
-      // log error
-      if (!err.message.startsWith("E11000 duplicate key error collection:")) {
-        console.log(`ERROR with APP-ID: ${appId}`);
-        console.log(err);
+    if (logs.length > 0) {
+      try {
+        await appCollectionHash[appId].insertMany(logs, { ordered: false });
+      } catch (err) {
+        // log error
+        if (!err.message.startsWith("E11000 duplicate key error collection:")) {
+          console.log(`ERROR with APP-ID: ${appId}`);
+          console.log(err);
+        }
       }
     }
-  }
 
-  /* update next token and next call time
-   * If previous next token and current next token is different, then decrease timeout by 250ms, else increase by 250ms.
-   * min time between calls: 250ms
-   * max time between calls: 5000ms
-   */
-  if (!nextToken || nextTokenCache[appId] === nextToken) {
-    if (timeToNextCallCache[appId] < 5000) timeToNextCallCache[appId] += 250;
-  } else if (nextTokenCache[appId] !== nextToken) {
-    if (timeToNextCallCache[appId] > 250) timeToNextCallCache[appId] -= 250;
-    nextTokenCache[appId] = nextToken;
+    /* update next token and next call time
+    * If previous next token and current next token is different, then decrease timeout by 250ms, else increase by 250ms.
+    * min time between calls: 250ms
+    * max time between calls: 5000ms
+    */
+    if (!nextToken || nextTokenCache[appId] === nextToken) {
+      if (timeToNextCallCache[appId] < 5000) timeToNextCallCache[appId] += 250;
+    } else if (nextTokenCache[appId] !== nextToken) {
+      if (timeToNextCallCache[appId] > 250) timeToNextCallCache[appId] -= 250;
+      nextTokenCache[appId] = nextToken;
+    }
+  } catch (err) {
+    console.error(err);
+    timeToNextCallCache[appId] -= 250;
   }
   return setTimeout(
     async () => await getLogsFor(appId),
@@ -146,37 +151,37 @@ async function getLogsFor(
 
 async function getLatestAppsList() {
   console.log("Refreshing apps list");
-  // Get Apps
-  const appsResponse: { data: { apps: { nodes: [] } } } = await rFetch(
-    `${baseUrl}/graphql`,
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${Deno.env.get("FLY_AUTH_TOKEN")}`,
-      },
-      body: JSON.stringify({
-        query: `query {
-            apps(first: 400, role: null) {
-              nodes {
-                id
-                name
-                deployed
-                organization {
-                    slug
-                }
-                currentRelease {
-                    createdAt
-                }
-                status
-              }
-            }
-          }`,
-      }),
-    },
-    5,
-  );
   try {
+    // Get Apps
+    const appsResponse: { data: { apps: { nodes: [] } } } = await rFetch(
+      `${baseUrl}/graphql`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${Deno.env.get("FLY_AUTH_TOKEN")}`,
+        },
+        body: JSON.stringify({
+          query: `query {
+              apps(first: 400, role: null) {
+                nodes {
+                  id
+                  name
+                  deployed
+                  organization {
+                      slug
+                  }
+                  currentRelease {
+                      createdAt
+                  }
+                  status
+                }
+              }
+            }`,
+        }),
+      },
+      5,
+    );
     appsList = appsResponse?.data?.apps?.nodes;
     if (Deno.env.get("ORG_REGEX")) {
       appsList = appsList.filter((e: { organization: { slug: string } }) =>
@@ -224,7 +229,7 @@ async function getLatestAppsList() {
       }
     }
   } catch (err) {
-    console.log(err);
+    console.error(err);
   }
 }
 
